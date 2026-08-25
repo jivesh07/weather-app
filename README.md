@@ -53,4 +53,4 @@ Works on desktop, laptop, tablet and mobile devices.
 
 Jivesh Kumar
 
-Made with ❤️ using HTML, CSS & JavaScript.
+Thanks For Using My App.
