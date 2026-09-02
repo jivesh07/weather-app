@@ -1,124 +1,64 @@
-const cityInput = document.getElementById("cityInput");
-const searchBtn = document.getElementById("searchBtn");
-const weatherCard = document.getElementById("weatherCard");
-const loading = document.getElementById("loading");
-const errorMessage = document.getElementById("errorMessage");
+const form=document.getElementById("searchForm");
+const cityInput=document.getElementById("cityInput");
+const statusEl=document.getElementById("status");
+const weatherEl=document.getElementById("weather");
+const fields={
+city:document.getElementById("cityName"),
+country:document.getElementById("countryName"),
+temperature:document.getElementById("temperature"),
+condition:document.getElementById("condition"),
+feelsLike:document.getElementById("feelsLike"),
+humidity:document.getElementById("humidity"),
+windSpeed:document.getElementById("windSpeed"),
+icon:document.getElementById("weatherIcon")
+};
 
-const cityName = document.getElementById("cityName");
-const temperature = document.getElementById("temperature");
-const description = document.getElementById("description");
-const humidity = document.getElementById("humidity");
-const windSpeed = document.getElementById("windSpeed");
-const feelsLike = document.getElementById("feelsLike");
+const weatherCodes={
+0:["Clear sky","☀️"],1:["Mainly clear","🌤️"],2:["Partly cloudy","⛅"],3:["Overcast","☁️"],
+45:["Fog","🌫️"],48:["Rime fog","🌫️"],51:["Light drizzle","🌦️"],53:["Drizzle","🌦️"],55:["Heavy drizzle","🌧️"],
+61:["Light rain","🌦️"],63:["Rain","🌧️"],65:["Heavy rain","🌧️"],71:["Light snow","🌨️"],73:["Snow","❄️"],
+75:["Heavy snow","❄️"],80:["Rain showers","🌦️"],81:["Rain showers","🌧️"],82:["Heavy showers","⛈️"],
+95:["Thunderstorm","⛈️"],96:["Thunderstorm with hail","⛈️"],99:["Thunderstorm with hail","⛈️"]
+};
 
-function getWeatherDescription(code) {
-    const weatherCodes = {
-        0: "Clear sky",
-        1: "Mainly clear",
-        2: "Partly cloudy",
-        3: "Overcast",
-        45: "Fog",
-        48: "Depositing rime fog",
-        51: "Light drizzle",
-        53: "Moderate drizzle",
-        55: "Dense drizzle",
-        61: "Slight rain",
-        63: "Moderate rain",
-        65: "Heavy rain",
-        71: "Slight snow",
-        73: "Moderate snow",
-        75: "Heavy snow",
-        80: "Slight rain showers",
-        81: "Moderate rain showers",
-        82: "Violent rain showers",
-        95: "Thunderstorm"
-    };
+function setStatus(message=""){statusEl.textContent=message}
 
-    return weatherCodes[code] || "Unknown weather";
-}
+async function getWeather(city){
+setStatus("Loading weather...");weatherEl.classList.add("hidden");
+try{
+const geoUrl=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+const geoResponse=await fetch(geoUrl);
+if(!geoResponse.ok)throw new Error("Unable to find the city.");
+const geoData=await geoResponse.json();
+if(!geoData.results?.length)throw new Error("City not found. Please check the spelling.");
+const place=geoData.results[0];
 
-function getWeatherIcon(code) {
-    if (code === 0) return "☀️";
-    if (code === 1 || code === 2) return "🌤️";
-    if (code === 3) return "☁️";
-    if (code >= 45 && code <= 48) return "🌫️";
-    if (code >= 51 && code <= 65) return "🌧️";
-    if (code >= 71 && code <= 75) return "❄️";
-    if (code >= 80 && code <= 82) return "🌦️";
-    if (code === 95) return "⛈️";
-    return "🌤️";
-}
-
-async function getWeather(city) {
-    try {
-        errorMessage.textContent = "";
-        loading.style.display = "block";
-        weatherCard.style.display = "none";
-
-        const geoURL =
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
-
-        const geoResponse = await fetch(geoURL);
-
-        if (!geoResponse.ok) {
-            throw new Error("Unable to find city");
-        }
-
-        const geoData = await geoResponse.json();
-
-        if (!geoData.results || geoData.results.length === 0) {
-            throw new Error("City not found");
-        }
-
-        const location = geoData.results[0];
-
-        const weatherURL =
-            `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`;
-
-        const weatherResponse = await fetch(weatherURL);
-
-        if (!weatherResponse.ok) {
-            throw new Error("Weather data unavailable");
-        }
-
-        const weatherData = await weatherResponse.json();
-        const currentWeather = weatherData.current;
-
-        cityName.textContent = `${location.name}, ${location.country}`;
-        temperature.textContent = `${Math.round(currentWeather.temperature_2m)}°C`;
-        description.textContent = getWeatherDescription(currentWeather.weather_code);
-        humidity.textContent = `${currentWeather.relative_humidity_2m}%`;
-        windSpeed.textContent = `${currentWeather.wind_speed_10m} km/h`;
-        feelsLike.textContent = `${Math.round(currentWeather.apparent_temperature)}°C`;
-
-        document.querySelector(".weather-icon").textContent =
-            getWeatherIcon(currentWeather.weather_code);
-
-        weatherCard.style.display = "block";
-    } catch (error) {
-        errorMessage.textContent =
-            error.message || "Something went wrong. Please try again.";
-        weatherCard.style.display = "none";
-    } finally {
-        loading.style.display = "none";
-    }
-}
-
-searchBtn.addEventListener("click", () => {
-    const city = cityInput.value.trim();
-
-    if (city === "") {
-        errorMessage.textContent = "Please enter a city name.";
-        return;
-    }
-
-    getWeather(city);
+const params=new URLSearchParams({
+latitude:place.latitude,longitude:place.longitude,
+current:"temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
+timezone:"auto"
 });
+const weatherResponse=await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+if(!weatherResponse.ok)throw new Error("Weather data could not be loaded.");
+const data=await weatherResponse.json();
+const current=data.current;
+const [condition,icon]=weatherCodes[current.weather_code]||["Unknown","🌤️"];
 
-cityInput.addEventListener("keypress", (event) => {
-    if (event.key === "Enter") {
-        searchBtn.click();
-    }
+fields.city.textContent=place.name;
+fields.country.textContent=[place.admin1,place.country].filter(Boolean).join(", ");
+fields.temperature.textContent=Math.round(current.temperature_2m);
+fields.condition.textContent=condition;
+fields.feelsLike.textContent=`${Math.round(current.apparent_temperature)}°C`;
+fields.humidity.textContent=`${current.relative_humidity_2m}%`;
+fields.windSpeed.textContent=`${Math.round(current.wind_speed_10m)} km/h`;
+fields.icon.textContent=icon;
+setStatus("");weatherEl.classList.remove("hidden");
+}catch(error){setStatus(error.message||"Something went wrong. Please try again.")}
+}
+
+form.addEventListener("submit",event=>{
+event.preventDefault();
+const city=cityInput.value.trim();
+if(!city){setStatus("Please enter a city name.");return}
+getWeather(city);
 });
-
-getWeather("Delhi");
